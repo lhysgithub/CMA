@@ -8,3 +8,4 @@
 
 - change the lab of source-type to -10 and change the lab of target-type to 10
 
+已经能进入前五了，但是还不能到第一，或许，只有第一次到了第一才能比较好的进化。

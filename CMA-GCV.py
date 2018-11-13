@@ -114,7 +114,7 @@ def render_frame(OutDir, image, save_index, SourceClass, TargetClass, StartImg):
             barlist[i].set_color('r')
     plt.sca(ax2)
     plt.ylim([0, 1.1])
-    plt.xticks(range(5), probs, rotation='vertical')
+    plt.xticks(range(len(probs)), probs, rotation='vertical')
     fig.subplots_adjust(bottom=0.2)
 
     path = os.path.join(OutDir, 'frame%06d.jpg' % save_index)
@@ -138,8 +138,9 @@ def main():
     QueryTimes = 0
     Topk = 10
 
-    Convergence = 0.1
-    CloseThreshold = - 0.5
+    Convergence = 0.01
+    # CloseThreshold = - 0.5
+    CloseThreshold = 0
     Domin = 0.5
     Sigma = 10
     INumber = 50  # 染色体个数 / 个体个数
@@ -216,7 +217,7 @@ def main():
         L2Distance = tf.sqrt(tf.reduce_sum(tf.square(NewImage - SourceImg), axis=(1, 2, 3)))
         # IndividualFitness = - (Sigma * tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=Labels) + L2Distance)
         LossFunction = tf.placeholder(dtype=tf.float32)
-        IndividualFitness = - ( Sigma*LossFunction + L2Distance) # -tf.log(logit)
+        IndividualFitness = - (-LossFunction + L2Distance) # -tf.log(logit)
 
         # Select BestNmber Individual
         TopKFit, TopKFitIndx = tf.nn.top_k(IndividualFitness, BestNmber)
@@ -248,6 +249,7 @@ def main():
         cycletimes = 0
         initI = np.zeros(IndividualShape, dtype=float)
         # initCp = np.zeros((INumber), dtype=float)
+        initCR = np.zeros((INumber), dtype=float)
         initLoss = np.zeros((INumber), dtype=float)
 
         # find the usefull Individual
@@ -267,10 +269,14 @@ def main():
             for j in range(BatchSize):
                 if TargetType in PP[j]:
                     initI[UsefullNumber] = TempPerturbation[j]
-                    templabes = [-1]*len(PP[j])
-                    templabes[PP[j].index(TargetType)] = 10
-                    templabes[PP[j].index(SourceType)] = -10
-                    initLoss[UsefullNumber] = -np.sum(np.log(CP[j])*templabes)
+                    # templabes = [-1]*len(PP[j])
+                    # templabes[PP[j].index(TargetType)] = 10
+                    # templabes[PP[j].index(SourceType)] = -10
+                    # initLoss[UsefullNumber] = -np.sum(np.log(CP[j])*templabes)
+                    initLoss[UsefullNumber] = np.sum(np.log(CP[j][PP[j].index(TargetType)])-np.log(CP[j]))
+                    # initLoss[UsefullNumber] = np.log(np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j]))))
+                    # initLoss[UsefullNumber] = np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j])))
+                    initCR[UsefullNumber] = np.log(CP[j][PP[j].index(TargetType)]/CP[j][0])
                     # initCp[UsefullNumber] = CP[j][PP[j].index(TargetType)]
                     UsefullNumber += 1
                     if UsefullNumber == INumber:
@@ -352,9 +358,10 @@ def main():
         # initI = np.clip(initI, Downer, Upper)
 
         LastPBF, LastDNP, LastENP = PBF, DNP, ENP
-        ENP, DNP, PBF, PB = sess.run([Expectation, StdDeviation, PbestFitness, Pbest],
+        PBI,ENP, DNP, PBF, PB = sess.run([Pbestinds,Expectation, StdDeviation, PbestFitness, Pbest],
                                              feed_dict={Individual: initI, LossFunction: initLoss,STImg:StartImg,SourceImgtf:SourceImage})
 
+        PBI = PBI[0]
         if PB.shape[0] > 1:
             PB = PB[0]
             PB = np.reshape(PB, (1, 299, 299, 3))
@@ -371,8 +378,9 @@ def main():
         print(LogText)
 
         # elif i>10 and LastPBF > PBF: # 发生抖动陷入局部最优(不应该以是否发生抖动来判断参数，而是应该以是否发现出现无效数据来判断，或者两者共同判断)
-        if abs(PBF - LastPBF) < Convergence*(Sigma/5):
+        if PBL2Distance>15 and abs(PBF - LastPBF) < Convergence:
             if (PBF + PBL2Distance > CloseThreshold):  # 靠近
+            # if ( 1 ):  # 靠近
                 CEV += 0.01
                 CDV = CEV / 3
                 DNP += (SourceImage - (StartImg + ENP)) * CDV
@@ -381,17 +389,30 @@ def main():
                 LogFile.write(LogText + '\n')
                 print(LogText)
             else:
+                # CEV += 0.01
+                # CDV = CEV / 3
                 DNP += (SourceImage - (StartImg + ENP)) * CDV
                 LogText = "Scaling up CEV: %.3f CDV: %.3f" % (CEV, CDV)
                 LogFile.write(LogText + '\n')
                 print(LogText)
 
-        if PBF + PBL2Distance > CloseThreshold:
+        if initCR[PBI]<0 and PBL2Distance < 15 and abs(PBF - LastPBF) < Convergence:
+            # CEV += 0.01
+            # CDV = CEV / 3
+            DNP += (SourceImage - (StartImg + ENP)) * CDV
+            LogText = "Scaling up CEV: %.3f CDV: %.3f" % (CEV, CDV)
+            LogFile.write(LogText + '\n')
+            print(LogText)
+
+        # 如果结果还行，可以保存
+        # if (PBF + PBL2Distance > CloseThreshold):  # 靠近
+        if initCR[PBI]>=0:
             BestAdv = PB
             BestAdvL2 = PBL2Distance
             BestAdvF = PBF
 
-        if BestAdvL2 < 15 and BestAdvL2 + BestAdvF > CloseThreshold:
+        # 解雇
+        if BestAdvL2 < 15:
             LogText = "Complete BestAdvL2: %.4f BestAdvF: %.4f QueryTimes: %d" % (
                 BestAdvL2, BestAdvF, QueryTimes)
             print(LogText)
@@ -399,6 +420,7 @@ def main():
             render_frame(OutDir, BestAdv, 1000000, SourceType, TargetType, StartImg)
             break
 
+        # 最大循环次数
         if i == MaxEpoch - 1 or ConstantUnVaildExist == 30:
             LogText = "Complete to MaxEpoch or ConstantUnVaildExist BestAdvL2: %.4f BestAdvF: %.4f QueryTimes: %d" % (
                 BestAdvL2, BestAdvF, QueryTimes)
