@@ -141,7 +141,7 @@ def main():
     Convergence = 0.1
     CloseThreshold = - 0.5
     Domin = 0.5
-    Sigma = 1
+    Sigma = 10
     INumber = 50  # 染色体个数 / 个体个数
     BatchSize = 50  # 寻找可用个体时用的批量上限
     MaxEpoch = 10000  # 迭代上限
@@ -216,7 +216,7 @@ def main():
         L2Distance = tf.sqrt(tf.reduce_sum(tf.square(NewImage - SourceImg), axis=(1, 2, 3)))
         # IndividualFitness = - (Sigma * tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=Labels) + L2Distance)
         LossFunction = tf.placeholder(dtype=tf.float32)
-        IndividualFitness = - ( LossFunction + L2Distance) # -tf.log(logit)
+        IndividualFitness = - ( Sigma*LossFunction + L2Distance) # -tf.log(logit)
 
         # Select BestNmber Individual
         TopKFit, TopKFitIndx = tf.nn.top_k(IndividualFitness, BestNmber)
@@ -268,7 +268,8 @@ def main():
                 if TargetType in PP[j]:
                     initI[UsefullNumber] = TempPerturbation[j]
                     templabes = [-1]*len(PP[j])
-                    templabes[PP[j].index(TargetType)] = 1
+                    templabes[PP[j].index(TargetType)] = 10
+                    templabes[PP[j].index(SourceType)] = -10
                     initLoss[UsefullNumber] = -np.sum(np.log(CP[j])*templabes)
                     # initCp[UsefullNumber] = CP[j][PP[j].index(TargetType)]
                     UsefullNumber += 1
@@ -370,7 +371,7 @@ def main():
         print(LogText)
 
         # elif i>10 and LastPBF > PBF: # 发生抖动陷入局部最优(不应该以是否发生抖动来判断参数，而是应该以是否发现出现无效数据来判断，或者两者共同判断)
-        if abs(PBF - LastPBF) < Convergence:
+        if abs(PBF - LastPBF) < Convergence*(Sigma/5):
             if (PBF + PBL2Distance > CloseThreshold):  # 靠近
                 CEV += 0.01
                 CDV = CEV / 3
@@ -390,7 +391,7 @@ def main():
             BestAdvL2 = PBL2Distance
             BestAdvF = PBF
 
-        if BestAdvL2 < 26 and BestAdvL2 + BestAdvF > CloseThreshold:
+        if BestAdvL2 < 15 and BestAdvL2 + BestAdvF > CloseThreshold:
             LogText = "Complete BestAdvL2: %.4f BestAdvF: %.4f QueryTimes: %d" % (
                 BestAdvL2, BestAdvF, QueryTimes)
             print(LogText)
