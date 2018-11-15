@@ -138,9 +138,10 @@ def main():
     QueryTimes = 0
     Topk = 10
 
-    Convergence = 0.01
+    Convergence = 2
     # CloseThreshold = - 0.5
-    CloseThreshold = 0
+    # CloseThreshold = 0
+    CloseThreshold = - 70
     Domin = 0.5
     Sigma = 10
     INumber = 50  # 染色体个数 / 个体个数
@@ -162,8 +163,8 @@ def main():
     os.makedirs(OutDir)
 
     # Initialization
-    SourceImage = get_image(InputDir,1)
-    TargetImage = get_image(InputDir,2)
+    SourceImage = get_image(InputDir,7)
+    TargetImage = get_image(InputDir,6)
     SourceType,_ = GCVAPI(SourceImage,OutDir) # 获取首分类
     SourceType = SourceType[0][0] #
     TargetType,_ = GCVAPI(TargetImage,OutDir)
@@ -269,11 +270,12 @@ def main():
             for j in range(BatchSize):
                 if TargetType in PP[j]:
                     initI[UsefullNumber] = TempPerturbation[j]
-                    # templabes = [-1]*len(PP[j])
-                    # templabes[PP[j].index(TargetType)] = 10
-                    # templabes[PP[j].index(SourceType)] = -10
-                    # initLoss[UsefullNumber] = -np.sum(np.log(CP[j])*templabes)
-                    initLoss[UsefullNumber] = np.sum(np.log(CP[j][PP[j].index(TargetType)])-np.log(CP[j]))
+                    templabes = [-1]*len(PP[j])
+                    templabes[PP[j].index(TargetType)] = 10
+                    templabes[PP[j].index(SourceType)] = -10
+                    # initLoss[UsefullNumber] = np.sum( np.log(CP[j]) * templabes)
+                    initLoss[UsefullNumber] = - np.sum((1 / np.log(CP[j]))*templabes)
+                    # initLoss[UsefullNumber] = np.sum(np.log(CP[j][PP[j].index(TargetType)])-np.log(CP[j]))
                     # initLoss[UsefullNumber] = np.log(np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j]))))
                     # initLoss[UsefullNumber] = np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j])))
                     initCR[UsefullNumber] = np.log(CP[j][PP[j].index(TargetType)]/CP[j][0])
@@ -379,7 +381,7 @@ def main():
 
         # elif i>10 and LastPBF > PBF: # 发生抖动陷入局部最优(不应该以是否发生抖动来判断参数，而是应该以是否发现出现无效数据来判断，或者两者共同判断)
         if PBL2Distance>15 and abs(PBF - LastPBF) < Convergence:
-            if (PBF + PBL2Distance > CloseThreshold):  # 靠近
+            if (PBF + PBL2Distance> CloseThreshold):  # 靠近
             # if ( 1 ):  # 靠近
                 CEV += 0.01
                 CDV = CEV / 3
