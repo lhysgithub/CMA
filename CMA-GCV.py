@@ -107,11 +107,19 @@ def render_frame(OutDir, image, save_index, SourceClass, TargetClass, StartImg):
     confidence= confidence[0]
 
     barlist = ax2.bar(range(len(probs)), confidence)
+    # 多对多的染色方案
     for i, v in enumerate(probs):
-        if v == SourceClass:
+        if v in SourceClass:
             barlist[i].set_color('g')
-        if v == TargetClass:
+        elif v in TargetClass:
             barlist[i].set_color('r')
+
+    # 一对一时的染色方案
+    # for i, v in enumerate(probs):
+    #     if v == SourceClass:
+    #         barlist[i].set_color('g')
+    #     if v == TargetClass:
+    #         barlist[i].set_color('r')
     plt.sca(ax2)
     plt.ylim([0, 1.1])
     plt.xticks(range(len(probs)), probs, rotation='vertical')
@@ -163,16 +171,36 @@ def main():
     os.makedirs(OutDir)
 
     # Initialization
-    SourceImage = get_image(InputDir,7)
-    TargetImage = get_image(InputDir,6)
-    SourceType,_ = GCVAPI(SourceImage,OutDir) # 获取首分类
-    SourceType = SourceType[0][0] #
-    TargetType,_ = GCVAPI(TargetImage,OutDir)
-    TargetType = TargetType[0][0]
+    SourceImage = get_image(InputDir,1)
+    TargetImage = get_image(InputDir,2)
+    # SourceType,_ = GCVAPI(SourceImage,OutDir) # 获取首分类
+    # SourceType = SourceType[0][0] #
+    # TargetType,_ = GCVAPI(TargetImage,OutDir)
+    # TargetType = TargetType[0][0]
+
+    # 确定两张输入图片的识别分类
+    SourceType, _ = GCVAPI(SourceImage, OutDir)  # 获取首分类
+    TargetType, _ = GCVAPI(TargetImage, OutDir)
+    TypeNumber = 5
+    if (len(SourceType[0]) > len(TargetType[0])):
+        TypeNumber = len(TargetType[0])
+    else :
+        TypeNumber = len(SourceType[0])
+    if (TypeNumber>5):
+        TypeNumber = 5
+    SourceType = SourceType[0][0:TypeNumber]  #
+    TargetType = TargetType[0][0:TypeNumber]
+
 
     # Already done?
-    if (TargetType == SourceType):
-        print("Done!")
+    # if (TargetType == SourceType):
+    #     print("Done!")
+
+    # 多对多下的初始检验
+    for i in SourceType:
+        if i in TargetType :
+            print("Done!")
+            break
 
     # Set the start point of evolution
     StartImg = StartPoint(SourceImage, TargetImage,Domin)
@@ -194,6 +222,10 @@ def main():
     PBL2Distance = 100000
     ENP = np.zeros(ImageShape, dtype=float)
     DNP = np.zeros(ImageShape, dtype=float) + SSD
+    # 断点续实验
+    if os.path.exists(SourceType[0] + " " + TargetType[0] + "ENP.txt"):
+        ENP = np.loadtxt(SourceType[0] + " " + TargetType[0] + "ENP")
+        DNP = np.loadtxt(SourceType[0] + " " + TargetType[0] + "DNP")
     LastENP = ENP
     LastDNP = DNP
     LastPBF = PBF
@@ -251,6 +283,7 @@ def main():
         initI = np.zeros(IndividualShape, dtype=float)
         # initCp = np.zeros((INumber), dtype=float)
         initCR = np.zeros((INumber), dtype=float)
+        initPP = []
         initLoss = np.zeros((INumber), dtype=float)
 
         # find the usefull Individual
@@ -262,27 +295,51 @@ def main():
             TempPerturbation = np.clip(TempPerturbation, Downer, Upper)
             TestImage = TempPerturbation + np.reshape(StartImg, (1, 299, 299, 3))
             PP, CP = GCVAPI(TestImage,OutDir)
-            
+            Used = np.zeros(BatchSize)
+
             # CP = np.reshape(CP, (BatchSize, 1000))
             
             # 筛选
             QueryTimes += BatchSize
             for j in range(BatchSize):
-                if TargetType in PP[j]:
-                    initI[UsefullNumber] = TempPerturbation[j]
-                    templabes = [-1]*len(PP[j])
-                    templabes[PP[j].index(TargetType)] = 10
-                    templabes[PP[j].index(SourceType)] = -10
-                    # initLoss[UsefullNumber] = np.sum( np.log(CP[j]) * templabes)
-                    initLoss[UsefullNumber] = - np.sum((1 / np.log(CP[j]))*templabes)
-                    # initLoss[UsefullNumber] = np.sum(np.log(CP[j][PP[j].index(TargetType)])-np.log(CP[j]))
-                    # initLoss[UsefullNumber] = np.log(np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j]))))
-                    # initLoss[UsefullNumber] = np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j])))
-                    initCR[UsefullNumber] = np.log(CP[j][PP[j].index(TargetType)]/CP[j][0])
-                    # initCp[UsefullNumber] = CP[j][PP[j].index(TargetType)]
-                    UsefullNumber += 1
-                    if UsefullNumber == INumber:
-                        break
+                for oneTType in TargetType:
+                    if (oneTType in PP[j]) and Used[j]==0:
+
+                        initI[UsefullNumber] = TempPerturbation[j]
+                        initPP.append(PP[j])
+
+                        templabes = [-1] * len(PP[j])
+                        for k in PP[j]:
+                            if k in TargetType:
+                                templabes[PP[j].index(TargetType)] = 10
+                            elif k in SourceType:
+                                templabes[PP[j].index(SourceType)] = -10
+
+                        initLoss[UsefullNumber] = - np.sum((1 / np.log(CP[j]))*templabes)
+                        initCR[UsefullNumber] = np.log(CP[j][PP[j].index(TargetType)]/CP[j][0])
+
+                        Used[j]=1
+                        UsefullNumber += 1
+                        if UsefullNumber == INumber:
+                            break
+
+                # 一对一下的有效进化方法
+                # if TargetType in PP[j]:
+                #     initI[UsefullNumber] = TempPerturbation[j]
+                #     templabes = [-1]*len(PP[j])
+                #     templabes[PP[j].index(TargetType)] = 10
+                #     if SourceType in PP[j]:
+                #         templabes[PP[j].index(SourceType)] = -10
+                #     # initLoss[UsefullNumber] = np.sum( np.log(CP[j]) * templabes)
+                #     initLoss[UsefullNumber] = - np.sum((1 / np.log(CP[j]))*templabes)
+                #     # initLoss[UsefullNumber] = np.sum(np.log(CP[j][PP[j].index(TargetType)])-np.log(CP[j]))
+                #     # initLoss[UsefullNumber] = np.log(np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j]))))
+                #     # initLoss[UsefullNumber] = np.exp(CP[j][PP[j].index(TargetType)])/np.sum(np.exp(np.log(CP[j])))
+                #     initCR[UsefullNumber] = np.log(CP[j][PP[j].index(TargetType)]/CP[j][0])
+                #     # initCp[UsefullNumber] = CP[j][PP[j].index(TargetType)]
+                #     UsefullNumber += 1
+                #     if UsefullNumber == INumber:
+                #         break
 
             # Check whether the UsefullNumber equals INumber
             if UsefullNumber != INumber:
@@ -363,6 +420,10 @@ def main():
         PBI,ENP, DNP, PBF, PB = sess.run([Pbestinds,Expectation, StdDeviation, PbestFitness, Pbest],
                                              feed_dict={Individual: initI, LossFunction: initLoss,STImg:StartImg,SourceImgtf:SourceImage})
 
+        # 断点续实验
+        np.savetxt(SourceType[0] + " " + TargetType[0] + "ENP", ENP)
+        np.savetxt(SourceType[0] + " " + TargetType[0] + "DNP", DNP)
+
         PBI = PBI[0]
         if PB.shape[0] > 1:
             PB = PB[0]
@@ -381,7 +442,13 @@ def main():
 
         # elif i>10 and LastPBF > PBF: # 发生抖动陷入局部最优(不应该以是否发生抖动来判断参数，而是应该以是否发现出现无效数据来判断，或者两者共同判断)
         if PBL2Distance>15 and abs(PBF - LastPBF) < Convergence:
-            if (PBF + PBL2Distance> CloseThreshold):  # 靠近
+            Closeflag = 0
+            for w in range(int(len(initPP[PBI])/2)):
+                if initPP[w] in TargetType:
+                    Closeflag  = 1
+
+            if (Closeflag == 1):  # 靠近
+            # if (PBF + PBL2Distance> CloseThreshold):  # 靠近
             # if ( 1 ):  # 靠近
                 CEV += 0.01
                 CDV = CEV / 3
