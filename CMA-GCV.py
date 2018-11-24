@@ -146,11 +146,11 @@ def main():
     QueryTimes = 0
     Topk = 10
 
-    Convergence = 2
+    Convergence = 20
     # CloseThreshold = - 0.5
     # CloseThreshold = 0
     CloseThreshold = - 70
-    Domin = 0.5
+    Domin = 0.1
     Sigma = 10
     INumber = 50  # 染色体个数 / 个体个数
     BatchSize = 50  # 寻找可用个体时用的批量上限
@@ -171,7 +171,7 @@ def main():
     os.makedirs(OutDir)
 
     # Initialization
-    SourceImage = get_image(InputDir,1)
+    SourceImage = get_image(InputDir,5)
     TargetImage = get_image(InputDir,2)
     # SourceType,_ = GCVAPI(SourceImage,OutDir) # 获取首分类
     # SourceType = SourceType[0][0] #
@@ -223,9 +223,9 @@ def main():
     ENP = np.zeros(ImageShape, dtype=float)
     DNP = np.zeros(ImageShape, dtype=float) + SSD
     # 断点续实验
-    if os.path.exists(SourceType[0] + " " + TargetType[0] + "ENP.txt"):
-        ENP = np.loadtxt(SourceType[0] + " " + TargetType[0] + "ENP")
-        DNP = np.loadtxt(SourceType[0] + " " + TargetType[0] + "DNP")
+    if os.path.exists(SourceType[0] + " " + TargetType[0] + "ENP.npy"):
+        ENP = np.load(SourceType[0] + " " + TargetType[0] + "ENP.npy")
+        DNP = np.load(SourceType[0] + " " + TargetType[0] + "DNP.npy")
     LastENP = ENP
     LastDNP = DNP
     LastPBF = PBF
@@ -311,17 +311,19 @@ def main():
                         templabes = [-1] * len(PP[j])
                         for k in PP[j]:
                             if k in TargetType:
-                                templabes[PP[j].index(TargetType)] = 10
+                                templabes[PP[j].index(k)] = 10
                             elif k in SourceType:
-                                templabes[PP[j].index(SourceType)] = -10
+                                templabes[PP[j].index(k)] = -10
 
                         initLoss[UsefullNumber] = - np.sum((1 / np.log(CP[j]))*templabes)
-                        initCR[UsefullNumber] = np.log(CP[j][PP[j].index(TargetType)]/CP[j][0])
+                        # initCR[UsefullNumber] = np.log(CP[j][PP[j].index(TargetType)]/CP[j][0])
 
                         Used[j]=1
                         UsefullNumber += 1
-                        if UsefullNumber == INumber:
+                        if UsefullNumber == INumber: # 找够了，跳出有效进化
                             break
+                if UsefullNumber == INumber: # 找够了，跳出有效进化
+                    break
 
                 # 一对一下的有效进化方法
                 # if TargetType in PP[j]:
@@ -421,8 +423,8 @@ def main():
                                              feed_dict={Individual: initI, LossFunction: initLoss,STImg:StartImg,SourceImgtf:SourceImage})
 
         # 断点续实验
-        np.savetxt(SourceType[0] + " " + TargetType[0] + "ENP", ENP)
-        np.savetxt(SourceType[0] + " " + TargetType[0] + "DNP", DNP)
+        np.save(SourceType[0] + " " + TargetType[0] + "ENP.npy", ENP)
+        np.save(SourceType[0] + " " + TargetType[0] + "DNP.npy", DNP)
 
         PBI = PBI[0]
         if PB.shape[0] > 1:
@@ -444,8 +446,9 @@ def main():
         if PBL2Distance>15 and abs(PBF - LastPBF) < Convergence:
             Closeflag = 0
             for w in range(int(len(initPP[PBI])/2)):
-                if initPP[w] in TargetType:
+                if initPP[PBI][w] in TargetType:
                     Closeflag  = 1
+                    break
 
             if (Closeflag == 1):  # 靠近
             # if (PBF + PBL2Distance> CloseThreshold):  # 靠近
@@ -465,7 +468,7 @@ def main():
                 LogFile.write(LogText + '\n')
                 print(LogText)
 
-        if initCR[PBI]<0 and PBL2Distance < 15 and abs(PBF - LastPBF) < Convergence:
+        if (initPP[PBI][0] not in TargetType) and PBL2Distance < 15 and abs(PBF - LastPBF) < Convergence:
             # CEV += 0.01
             # CDV = CEV / 3
             DNP += (SourceImage - (StartImg + ENP)) * CDV
@@ -475,7 +478,8 @@ def main():
 
         # 如果结果还行，可以保存
         # if (PBF + PBL2Distance > CloseThreshold):  # 靠近
-        if initCR[PBI]>=0:
+        # if initCR[PBI]>=0:
+        if initPP[PBI][0] not in TargetType:
             BestAdv = PB
             BestAdvL2 = PBL2Distance
             BestAdvF = PBF
