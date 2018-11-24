@@ -436,7 +436,7 @@ def main():
         LastPBL2 = PBL2Distance
         PBL2Distance = np.sqrt(np.sum(np.square(StartImg + PB - SourceImage), axis=(1, 2, 3)))
 
-        render_frame(OutDir, PB, i, SourceType, TargetType, StartImg)
+        render_frame(OutDir, PB, 100 + i, SourceType, TargetType, StartImg)
         LogText = "Step %05d: PBF: %.4f UseingTime: %.4f PBL2Distance: %.4f QueryTimes: %d" % (
             i, PBF, End - Start, PBL2Distance, QueryTimes)
         LogFile.write(LogText + '\n')
@@ -479,7 +479,7 @@ def main():
         # 如果结果还行，可以保存
         # if (PBF + PBL2Distance > CloseThreshold):  # 靠近
         # if initCR[PBI]>=0:
-        if initPP[PBI][0] not in TargetType:
+        if initPP[PBI][0] in TargetType:
             BestAdv = PB
             BestAdvL2 = PBL2Distance
             BestAdvF = PBF
