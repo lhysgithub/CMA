@@ -41,4 +41,3 @@ CloseDVectorWeight = 0.1
 
 
 ##### lab17
-
