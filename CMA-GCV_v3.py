@@ -468,5 +468,14 @@ def main():
             render_frame(OutDir, BestAdv, 1000000, SourceType, TargetType, StartImg)
             break
 
+        # 最大查询数
+        if QueryTimes >= 40000:
+            LogText = "Complete to MaxEpoch or ConstantUnVaildExist BestAdvL2: %.4f BestAdvF: %.4f QueryTimes: %d" % (
+                BestAdvL2, BestAdvF, QueryTimes)
+            print(LogText)
+            LogFile.write(LogText + '\n')
+            render_frame(OutDir, BestAdv, 1000000, SourceType, TargetType, StartImg)
+            break
+
 if __name__ == '__main__':
     main()
