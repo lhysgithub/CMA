@@ -145,7 +145,7 @@ def main():
     Continue = 1 # 断点续实验开关
     Convergence = 0.00001
     CloseThreshold = - 70
-    Domin = 0.15
+    Domin = 0.3
     Sigma = 10
     INumber = 50  # 染色体个数 / 个体个数
     BatchSize = 50  # 寻找可用个体时用的批量上限
@@ -419,7 +419,7 @@ def main():
         print(LogText)
 
         # elif i>10 and LastPBF > PBF: # 发生抖动陷入局部最优(不应该以是否发生抖动来判断参数，而是应该以是否发现出现无效数据来判断，或者两者共同判断)
-        if PBL2Distance>15 and abs(PBF - LastPBF) < Convergence:
+        if PBL2Distance>25 and abs(PBF - LastPBF) < Convergence:
             Closeflag = 0
 
             # 目标分类在前一半时才可以触发靠近
@@ -429,7 +429,11 @@ def main():
             #         break
 
             # 目标分类比原始分类高就可触发靠近
-            if SourceType[0] not in initPP[PBI] or initPP[PBI].index(TargetType[0]) < initPP[PBI].index(SourceType[0]):
+            # if SourceType[0] not in initPP[PBI] or initPP[PBI].index(TargetType[0]) < initPP[PBI].index(SourceType[0]):
+            #     Closeflag  = 1
+
+            # 只要目标分类不是最后一个就触发靠近操作
+            if initPP[PBI].index(TargetType[0]) < len(initPP[PBI])-1:
                 Closeflag  = 1
 
             if (Closeflag == 1):  # 靠近
@@ -448,10 +452,10 @@ def main():
 
         # 动态确定Convergence
         if i>=2:
-            Convergence = abs(PBF - LastPBF)/2
+            Convergence = abs(PBF - LastPBF)/3
 
-        # 如果L2距离小于15后还没有完成攻击，那么在此扩散
-        if (initPP[PBI][0] not in TargetType) and PBL2Distance < 15 and abs(PBF - LastPBF) < Convergence:
+        # 如果L2距离小于25后还没有完成攻击，那么在此扩散
+        if (initPP[PBI][0] not in TargetType) and PBL2Distance < 25 and abs(PBF - LastPBF) < Convergence:
             DNP += (SourceImage - (StartImg + ENP)) * CDV
             LogText = "Scaling up CEV: %.3f CDV: %.3f" % (CEV, CDV)
             LogFile.write(LogText + '\n')
@@ -464,7 +468,7 @@ def main():
             BestAdvF = PBF
 
         # 解雇
-        if BestAdvL2 < 15:
+        if BestAdvL2 < 25:
             LogText = "Complete BestAdvL2: %.4f BestAdvF: %.4f QueryTimes: %d" % (
                 BestAdvL2, BestAdvF, QueryTimes)
             print(LogText)
