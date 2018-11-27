@@ -138,9 +138,11 @@ def main():
     # Algorithm parameters
     InputDir = "adv_samples/"
     OutDir = "adv_example/"
+    StartDir = "adv_start/"
     QueryTimes = 0
     Topk = 10
 
+    Continue = 1 # 断点续实验开关
     Convergence = 0.00001
     CloseThreshold = - 70
     Domin = 0.15
@@ -187,7 +189,13 @@ def main():
     TargetType = TempTargetType
 
     # Set the start point of evolution
-    StartImg = StartPoint(SourceImage, TargetImage,Domin)
+    # 断点续实验
+    if Continue==1 and os.path.exists(StartDir+SourceType[0] + " " + TargetType[0] + ".jpg"):
+        StartImg = get_image(StartDir,0)
+    elif Continue == 1 and os.path.exists(StartDir+SourceType[0] + " " + TargetType[0] + "Start.npy")
+        StartImg = np.load(StartDir+SourceType[0] + " " + TargetType[0] + "Start.npy")
+    else:
+        StartImg = StartPoint(SourceImage, TargetImage,Domin)
     Upper = 1.0 - StartImg
     Downer = 0.0 - StartImg
 
@@ -205,7 +213,11 @@ def main():
     PBF = -1000000.0
     PBL2Distance = 100000
     ENP = np.zeros(ImageShape, dtype=float)
-    DNP = np.zeros(ImageShape, dtype=float) + SSD
+    # 断点续实验
+    if Continue==1 and os.path.exists(StartDir+SourceType[0] + " " + TargetType[0] + "DNP.npy"):
+        DNP = np.load(SourceType[0] + " " + TargetType[0] + "DNP.npy")
+    else:
+        DNP = np.zeros(ImageShape, dtype=float) + SSD
     # 断点续实验
     # if os.path.exists(SourceType[0] + " " + TargetType[0] + "ENP.npy"):
     #     ENP = np.load(SourceType[0] + " " + TargetType[0] + "ENP.npy")
@@ -376,7 +388,7 @@ def main():
                 break
 
         # Error dispose
-        if StartError == 1:
+        if StartError == 1 or cycletimes >=30 :
             break
 
         # initI = np.clip(initI, Downer, Upper)
@@ -386,8 +398,9 @@ def main():
                                              feed_dict={Individual: initI, LossFunction: initLoss,STImg:StartImg,SourceImgtf:SourceImage})
 
         # 断点续实验
-        np.save(SourceType[0] + " " + TargetType[0] + "ENP.npy", ENP)
-        np.save(SourceType[0] + " " + TargetType[0] + "DNP.npy", DNP)
+        np.sive(StartDir+SourceType[0] + " " + TargetType[0] + "Start.npy",StartImg+ENP)
+        np.save(StartDir+SourceType[0] + " " + TargetType[0] + "ENP.npy", ENP)
+        np.save(StartDir+SourceType[0] + " " + TargetType[0] + "DNP.npy", DNP)
 
         PBI = PBI[0]
         if PB.shape[0] > 1:
