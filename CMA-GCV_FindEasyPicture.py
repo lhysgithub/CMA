@@ -145,12 +145,18 @@ def main():
         shutil.rmtree(OutDir)
     os.makedirs(OutDir)
 
+    # 遍历所有的源目图片组
     for i in range(100):
         sourceIndex = int(i/10)
         targetIndex = i%10
 
+        # 如果原图等于目标图片，跳过
+        if sourceIndex == targetIndex:
+            continue
+
+        # 一些必须的实验参数
         Continue = 1 # 断点续实验开关
-        Domin = 0.3
+        Domin = 0.5
         INumber = 50  # 染色体个数 / 个体个数
         BatchSize = 50  # 寻找可用个体时用的批量上限
         IndividualShape = (INumber, 299, 299, 3)
@@ -164,15 +170,25 @@ def main():
         # 确定两张输入图片的识别分类
         SourceType, _ = GCVAPI(SourceImage, OutDir)  # 获取首分类
         TargetType, _ = GCVAPI(TargetImage, OutDir)
-        print("SourceType:")
-        for keyword in range(len(SourceType[0])):
-            print("%d. "%keyword + SourceType[0][keyword])
-        SourceIndex = input("Please input the index of source type:")
 
-        print("TargetType:")
-        for keyword in range(len(TargetType[0])):
-            print("%d. "%keyword + TargetType[0][keyword])
-        TargetIndex = input("Please input the index of target type:")
+        # 手动选择原始分类
+        # print("SourceType:")
+        # for keyword in range(len(SourceType[0])):
+        #     print("%d. "%keyword + SourceType[0][keyword])
+        # SourceIndex = input("Please input the index of source type:")
+
+        # 自动选择原始分类
+        SourceIndex = 0
+
+        # 手动选择目标分类
+        # print("TargetType:")
+        # for keyword in range(len(TargetType[0])):
+        #     print("%d. "%keyword + TargetType[0][keyword])
+        # TargetIndex = input("Please input the index of target type:")
+
+        # 自动选择目标分类
+        TargetIndex = 0
+
         TempSourceType=[]
         TempTargetType= []
         TempSourceType.append(SourceType[0][int(SourceIndex)])   #
@@ -252,7 +268,7 @@ def main():
 
             # Check whether the UsefullNumber equals INumber
             if UsefullNumber != INumber:
-                LogText = "UsefullNumber: %3d SSD: %.2f DM: %.3f" % (UsefullNumber, SSD, DM)
+                LogText = "Number %d UsefullNumber: %3d SSD: %.2f DM: %.3f" % (i,UsefullNumber, SSD, DM)
                 LogFile.write(LogText + '\n')
                 print(LogText)
 
